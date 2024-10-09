@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2020 Shift GmbH
+ * Copyright (C) 2023 The risingOS Android Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,27 +43,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-public final class IconPackSettingsFragment extends RadioSettingsFragment {
+public final class ThemeIconsSettingsFragment extends RadioSettingsFragment {
     private static final IntentFilter PKG_UPDATE_INTENT = new IntentFilter();
-
-    private static final String[] ICON_INTENT_ACTIONS = new String[] {
-            "com.fede.launcher.THEME_ICONPACK",
-            "com.anddoes.launcher.THEME",
-            "com.novalauncher.THEME",
-            "com.teslacoilsw.launcher.THEME",
-            "com.gau.go.launcherex.theme",
-            "org.adw.launcher.THEMES",
-            "org.adw.launcher.icons.ACTION_PICK_ICON",
-            "net.oneplus.launcher.icons.ACTION_PICK_ICON",
-    };
-
-    private static final Intent[] ICON_INTENTS = new Intent[ICON_INTENT_ACTIONS.length];
-
-    static {
-        for (int i = 0; i < ICON_INTENT_ACTIONS.length; i++) {
-            ICON_INTENTS[i] = new Intent(ICON_INTENT_ACTIONS[i]);
-        }
-    }
+    private List<SelectorWithWidgetPreference> preferencesList = new ArrayList<>();
     
     static {
         PKG_UPDATE_INTENT.addAction(Intent.ACTION_PACKAGE_INSTALL);
@@ -94,65 +77,89 @@ public final class IconPackSettingsFragment extends RadioSettingsFragment {
 
     @Override
     protected List<SelectorWithWidgetPreference> getPreferences(Context context) {
-        final String currentIconPack = IconDatabase.getGlobal(context);
+        final String currentIconPack = IconDatabase.getGlobalThemeIcons(context);
+        final String disableThemeIcons = context.getString(R.string.themed_icon_pack_disabled);
         final List<SelectorWithWidgetPreference> prefsList = new ArrayList<>();
         final Set<IconPackInfo> iconPacks = getAvailableIconPacks(context);
 
         for (final IconPackInfo entry : iconPacks) {
-            final boolean isCurrent = currentIconPack.equals(entry.pkgName);
+            final boolean isDisabled = currentIconPack == null && entry.pkgName.equals("disabled");
+            final boolean isCurrent = currentIconPack != null && entry.pkgName != null && currentIconPack.equals(entry.pkgName);
             final SelectorWithWidgetPreference pref = buildPreference(context,
-                    entry.pkgName, entry.label, isCurrent);
+                     isDisabled ? "disabled" : entry.pkgName, isDisabled ? disableThemeIcons : entry.label, isDisabled ? isDisabled : isCurrent);
             prefsList.add(pref);
 
             if (isCurrent) {
                 setSelectedPreference(pref);
             }
         }
+        
+        preferencesList = prefsList;
 
         return prefsList;
     }
 
     @Override
     public void onSelected(String key) {
-        IconDatabase.setGlobal(getActivity(), key);
+        for (SelectorWithWidgetPreference pref : getPreferencesList()) {
+            if (!pref.getKey().equals(key)) {
+                pref.setChecked(false);
+            }
+        }
+
+        IconDatabase.setGlobalThemedIcons(getActivity(), key);
         super.onSelected(key);
     }
 
+
     @Override
     protected IconPackHeaderPreference getHeader(Context context) {
-        return new IconPackHeaderPreference(context);
+        return null;
+    }
+
+    private List<SelectorWithWidgetPreference> getPreferencesList() {
+        return preferencesList;
     }
 
     private Set<IconPackInfo> getAvailableIconPacks(Context context) {
         final PackageManager pm = context.getPackageManager();
         final Set<IconPackInfo> availablePacks = new LinkedHashSet<>();
-        final List<ResolveInfo> eligiblePacks = new ArrayList<>();
-        for (Intent intent : ICON_INTENTS) {
-            eligiblePacks.addAll(pm.queryIntentActivities(intent, PackageManager.GET_META_DATA));
-        }
 
-        // Add default
-        final String defaultLabel = context.getString(R.string.icon_pack_default_label);
-        availablePacks.add(new IconPackInfo(IconDatabase.VALUE_DEFAULT, defaultLabel));
-        // Add user-installed packs that do not have themed icons
-        for (final ResolveInfo r : eligiblePacks) {
-            if (!hasThemedIconResourceMap(pm, r.activityInfo.packageName)) {
-                availablePacks.add(new IconPackInfo(
-                        r.activityInfo.packageName, (String) r.loadLabel(pm)));
+        // Add 3rd party Themed icons
+        List<PackageInfo> allInstalledPackages = pm.getInstalledPackages(0);
+        final String disableThemeIcons = context.getString(R.string.themed_icon_pack_disabled);
+        final String defaultThemeIcons = context.getString(R.string.icon_pack_default_label);
+        availablePacks.add(new IconPackInfo("disabled", disableThemeIcons));
+        for (PackageInfo packageInfo : allInstalledPackages) {
+            if (!packageInfo.packageName.equals("com.android.launcher3")) {
+                if (hasIconResourceMap(pm, packageInfo)) {
+                    final boolean isDefault = packageInfo.packageName.contains("com.android.launcher3")
+                        || packageInfo.packageName.contains("com.plus.android.overlay.launcher3");
+                    String appLabel = isDefault ? defaultThemeIcons : (String) packageInfo.applicationInfo.loadLabel(pm);
+                    String appName = packageInfo.packageName;
+                    availablePacks.add(new IconPackInfo(
+                                appName, appLabel));
+                }
             }
         }
+
         return availablePacks;
     }
 
-    private boolean hasThemedIconResourceMap(PackageManager pm, String packageName) {
+    private boolean hasIconResourceMap(PackageManager pm, PackageInfo packageInfo) {
+        Resources res;
         try {
-            PackageInfo packageInfo = pm.getPackageInfo(packageName, PackageManager.GET_META_DATA);
-            Resources res = pm.getResourcesForApplication(packageInfo.applicationInfo);
-            int resID = res.getIdentifier("grayscale_icon_map", "xml", packageName);
-            return resID != 0;
-        } catch (PackageManager.NameNotFoundException | Resources.NotFoundException e) {
+            res = pm.getResourcesForApplication(packageInfo.applicationInfo);
+        } catch (PackageManager.NameNotFoundException e) {
             return false;
         }
+
+        int resID = res.getIdentifier(
+                "grayscale_icon_map",
+                "xml",
+                packageInfo.packageName
+        );
+        return resID != 0;
     }
 
     private SelectorWithWidgetPreference buildPreference(Context context, String pkgName,
@@ -162,7 +169,7 @@ public final class IconPackSettingsFragment extends RadioSettingsFragment {
         pref.setTitle(label);
         pref.setPersistent(false);
         pref.setChecked(isChecked);
-        if (!pkgName.equals(IconDatabase.VALUE_DEFAULT)) {
+        if (pkgName != null) {
             Intent intent = context.getPackageManager().getLaunchIntentForPackage(pkgName);
             if (intent != null) {
                 pref.setExtraWidgetOnClickListener((v) -> {

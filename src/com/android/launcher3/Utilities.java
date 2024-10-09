@@ -211,6 +211,7 @@ public final class Utilities {
     public static final String KEY_DRAWER_SCROLLBAR = "pref_drawer_scrollbar";
     public static final String KEY_FORCE_MONOCHROME_ICON = "pref_force_monochrome_icon";
     public static final String KEY_AUTO_KEYABORD = "pref_auto_keyboard";
+    public static final String KEY_RECENTS_CHIPS = "pref_recents_chips";
 
     /**
      * Returns true if theme is dark.
@@ -667,7 +668,8 @@ public final class Utilities {
                 return null;
             }
             mainIcon = appState.getIconProvider().getIcon(
-                    activityInfo, appState.getInvariantDeviceProfile().fillResIconDpi);
+                    activityInfo, appState.getInvariantDeviceProfile().fillResIconDpi, 
+                    Themes.getThemedIconPack(context));
         } else if (info.itemType == LauncherSettings.Favorites.ITEM_TYPE_DEEP_SHORTCUT) {
             List<ShortcutInfo> siList = ShortcutKey.fromItemInfo(info)
                     .buildRequest(context)
@@ -1060,13 +1062,12 @@ public final class Utilities {
    }
 
     public static int getRecentsOpacity(Context context) {
-        SharedPreferences prefs = LauncherPrefs.getPrefs(context.getApplicationContext());
-        return prefs.getInt(KEY_RECENTS_OPACITY, 40);
+        return 0;
     }
 
     public static int getAllAppsOpacity(Context context) {
         SharedPreferences prefs = LauncherPrefs.getPrefs(context.getApplicationContext());
-        return prefs.getInt(KEY_APP_DRAWER_OPACITY, 80);
+        return prefs.getInt(KEY_APP_DRAWER_OPACITY, 100);
     }
 
     public static int getBlurRadius(Context context) {

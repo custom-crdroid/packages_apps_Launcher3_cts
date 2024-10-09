@@ -19,22 +19,7 @@
     xmlns:launcher="http://schemas.android.com/apk/res-auto"
     xmlns:settings="http://schemas.android.com/apk/res/com.android.launcher3">
 
-    <SwitchPreferenceCompat
-        android:key="pref_allapps_themed_icons"
-        android:title="@string/pref_themed_icons_title"
-        android:summary="@string/pref_themed_icons_summary"
-        android:persistent="true"
-        launcher:iconSpaceReserved="false" />
-
-    <SwitchPreferenceCompat
-        android:key="pref_force_monochrome_icon"
-        android:title="@string/force_monochrome_icons_title"
-        android:summary="@string/force_monochrome_icons_summary"
-        android:defaultValue="false"
-        android:persistent="true"
-        launcher:iconSpaceReserved="false" />
-
-    <SwitchPreferenceCompat
+   <SwitchPreferenceCompat
         android:key="pref_drawer_search"
         android:title="@string/drawer_search_title"
         android:summary="@string/drawer_search_summary"
@@ -71,7 +56,7 @@
         android:max="100"
         android:min="0"
         settings:units="%"
-        android:defaultValue="80" />
+        android:defaultValue="100" />
 
     <com.android.launcher3.settings.preferences.CustomSeekBarPreference
         android:key="pref_row_height"
